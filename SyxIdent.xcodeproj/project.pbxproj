@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		3193A28E2762924B000F8AFD /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3193A28D2762924B000F8AFD /* main.swift */; };
+		3193A296276293CC000F8AFD /* SyxPack in Frameworks */ = {isa = PBXBuildFile; productRef = 3193A295276293CC000F8AFD /* SyxPack */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -32,6 +33,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3193A296276293CC000F8AFD /* SyxPack in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +80,9 @@
 			dependencies = (
 			);
 			name = SyxIdent;
+			packageProductDependencies = (
+				3193A295276293CC000F8AFD /* SyxPack */,
+			);
 			productName = SyxIdent;
 			productReference = 3193A28A2762924B000F8AFD /* SyxIdent */;
 			productType = "com.apple.product-type.tool";
@@ -106,6 +111,9 @@
 				Base,
 			);
 			mainGroup = 3193A2812762924B000F8AFD;
+			packageReferences = (
+				3193A294276293CC000F8AFD /* XCRemoteSwiftPackageReference "SyxPack" */,
+			);
 			productRefGroup = 3193A28B2762924B000F8AFD /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -286,6 +294,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3193A294276293CC000F8AFD /* XCRemoteSwiftPackageReference "SyxPack" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/coniferprod/SyxPack";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3193A295276293CC000F8AFD /* SyxPack */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3193A294276293CC000F8AFD /* XCRemoteSwiftPackageReference "SyxPack" */;
+			productName = SyxPack;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3193A2822762924B000F8AFD /* Project object */;
 }
