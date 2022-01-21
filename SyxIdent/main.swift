@@ -1,6 +1,71 @@
 import Foundation
 import SyxPack
 
+let korgSynths: [UInt: String] = [
+    0x28: "Wavestation",
+    0x36: "05R/W",
+    0x012c: "minilogue",
+    0x0144: "monologue",
+    0x014b: "prologue",
+    0x0151: "minilogue xd",
+    0x0157: "nu:tekt NTS-1",
+]
+
+// The Wavestation System Exclusive commands.
+// The CaseIterable protocol allows us to get all the cases.
+enum WavestationCommand: String, CaseIterable {
+    case singlePatchDump = "Single Patch Dump"
+    case singlePerformanceDump = "Single Performance Dump"
+    case allPatchDump = "All Patch Dump"
+    case allPerformanceDump = "All Performance Dump"
+    case systemSetupDump = "System Setup Dump"
+    case systemSetupExpandedDump = "System Setup Expanded Dump"
+    case waveSequenceDump = "Wave Sequence Dump"
+    case multiModeSetupDump = "Multi Mode Setup Dump"
+    case multiModeSetupExpandedDump = "Multi Mode Setup Expanded Dump"
+    case performanceMapDump = "Performance Map Dump"
+    case performanceMapExpandedDump = "Performance Map Expanded Dump"
+    case microTuneScaleDump = "Micro Tune Scale Dump"
+    case allDataDump = "All Data Dump"
+    
+    init?(id: Byte) {
+        switch id {
+        case 0x40: self = .singlePatchDump
+        case 0x49: self = .singlePerformanceDump
+        case 0x4c: self = .allPatchDump
+        case 0x4d: self = .allPerformanceDump
+        case 0x51: self = .systemSetupDump
+        case 0x5c: self = .systemSetupExpandedDump
+        case 0x54: self = .waveSequenceDump
+        case 0x55: self = .multiModeSetupDump
+        case 0x5e: self = .multiModeSetupExpandedDump
+        case 0x5d: self = .performanceMapDump
+        case 0x5f: self = .performanceMapExpandedDump
+        case 0x5a: self = .microTuneScaleDump
+        case 0x50: self = .allDataDump
+        default: return nil
+        }
+    }
+    
+    func asByte() -> Byte {
+        switch self {
+        case .singlePatchDump: return 0x40
+        case .singlePerformanceDump: return 0x49
+        case .allPatchDump: return 0x4c
+        case .allPerformanceDump: return 0x4d
+        case .systemSetupDump: return 0x51
+        case .systemSetupExpandedDump: return 0x5c
+        case .waveSequenceDump: return 0x54
+        case .multiModeSetupDump: return 0x55
+        case .multiModeSetupExpandedDump: return 0x5e
+        case .performanceMapDump: return 0x5d
+        case .performanceMapExpandedDump: return 0x5f
+        case .microTuneScaleDump: return 0x5a
+        case .allDataDump: return 0x50
+        }
+    }
+}
+
 guard CommandLine.arguments.count >= 2 else {
     print("Need a filename")
     exit(-1)
@@ -29,98 +94,88 @@ for (index, message) in messages.enumerated() {
 
     var messageBytes = ByteArray(message)
     messageBytes.append(0xF7)  // add back the terminator lost by split(:)
-    identifyMessage(data: messageBytes)
+    //identifyMessage(data: messageBytes)
     
     if let m = Message(data: messageBytes) {
         switch m {
         case .manufacturer(let manufacturer, let payload):
-            print("Manufacturer: \(manufacturer), payload: \(payload.count) bytes")
             if manufacturer == Manufacturer.korg {
-                print(manufacturer.displayName)
+                print("Manufacturer: \(manufacturer.displayName)")
                 
                 let synthId = messageBytes[3]
+                if synthId == 0x00 {
+                    let familyId = UInt16(messageBytes[4]) | (UInt16(messageBytes[5]) << 8)
+                    if let synthName = korgSynths[UInt(familyId)] {
+                        print("Model: \(synthName)")
+                    }
+                    else {
+                        print("Model: (unknown)")
+                    }
+                }
+                else {
+                    if let synthName = korgSynths[UInt(synthId)] {
+                        print("Model: \(synthName)")
+                    }
+                }
+                
                 switch synthId {
                 case 0x28:
-                    print("Wavestation")
-                    
                     var startOffset = 6
 
-                    let functionId = messageBytes[4]
-                    switch functionId {
-                    case 0x40:
-                        print("Single Patch Dump")
-                        startOffset = 7
-                        print("Bank: \(messageBytes[5])")
-                        print("Patch: \(messageBytes[6])")
-                    case 0x49:
-                        print("Single Performance Dump")
-                        print("Bank: \(messageBytes[5])")
-                        print("Performance: \(messageBytes[6])")
-                    case 0x4C:
-                        print("All Patch Dump")
-                        print("Bank: \(messageBytes[5])")
-                    case 0x4D:
-                        print("All Performance Dump")
-                        print("Bank: \(messageBytes[5])")
-                    case 0x51:
-                        print("System Setup Dump")
-                    case 0x5C:
-                        print("System Setup Parameter Expanded Dump")
-                    case 0x54:
-                        print("Wave Sequence Dump")
-                        print("Bank: \(messageBytes[5])")
-                    case 0x55:
-                        print("Multi Mode Setup Dump")
-                    case 0x5E:
-                        print("Multi Mode Setup Expanded Dump")
-                    case 0x5D:
-                        print("Performance Map Dump")
-                    case 0x5F:
-                        print("Performance Map Expanded Dump")
-                    case 0x5A:
-                        print("Micro Tune Scale Dump")
-                    case 0x50:
-                        print("All Data Dump")
-                    default:
-                        print("Something not known at this time")
+                    if let command = WavestationCommand(id: messageBytes[4]) {
+                        print("Command: \(command)")
+                        
+                        switch command {
+                        case .singlePatchDump:
+                            startOffset = 7
+                            print("Bank: \(messageBytes[5])")
+                            print("Patch: \(messageBytes[6])")
+                        case .singlePerformanceDump:
+                            print("Bank: \(messageBytes[5])")
+                            print("Performance: \(messageBytes[6])")
+                        case .allPatchDump:
+                            print("Bank: \(messageBytes[5])")
+                        case .allPerformanceDump:
+                            print("Bank: \(messageBytes[5])")
+                        case .waveSequenceDump:
+                            print("Bank: \(messageBytes[5])")
+                        default:  // no additional parameters to show
+                            break
+                        }
                     }
-                    
+
                     // KORG Wavestation SysEx messages have a varying header and
                     // two-nybble format payload, with low nybble first.
                     // The payload is followed by a checksum, right before the terminator.
                     let endOffset = messageBytes.count - 2 // leave out terminator and checksum
                     let payload = ByteArray(messageBytes[startOffset ..< endOffset])
+                    
+                    let originalChecksum = messageBytes[endOffset]
+                    print("Original checksum: \(String(format: "%02X", originalChecksum))h")
+                    let calculatedChecksum = calculateWavestationChecksum(data: payload)
+                    if originalChecksum == calculatedChecksum {
+                        print("Matches computed checksum.")
+                    }
+                    else {
+                        print("Calculated checksum: \(String(format: "%02X", calculatedChecksum))h")
+                        print("No match.")
+                    }
+
                     if let payload = payload.denybblified(highFirst: false) {
                         print("payload: \(payload.count) bytes")
                         //print(payload.hexDump())
                     }
                     else {
-                        print("payload byte count should be even")
-                    }
-                    
-                    let checksum = messageBytes[endOffset]
-                    print("checksum = \(String(format: "%02X", checksum))h")
-                    
-                    // Let's calculate the checksum from the payload and see if it matches
-                    var myChecksum = 0
-                    payload.forEach { b in
-                        myChecksum += Int(b)
-                    }
-                    myChecksum = myChecksum & 0x7f
-                    print("My checksum = \(String(format: "%02X", Byte(myChecksum)))h")
-                    if checksum == Byte(myChecksum) {
-                        print("Checksums match!")
-                    }
-                    else {
-                        print("Checksums don't match")
+                        print("error: payload byte count should be even")
+                        continue
                     }
                     
                 case 0x36:
                     print("05R/W")
                     
                     var startOffset = 5
-                    let functionId = messageBytes[4]
-                    switch functionId {
+                    let commandId = messageBytes[4]
+                    switch commandId {
                     case 0x40:
                         print("Program Parameter Dump")
                     case 0x4C:
@@ -171,53 +226,16 @@ for (index, message) in messages.enumerated() {
     print("")
 }
 
-messages.forEach { message in
-    var startOffset = 6
-    var messageBytes = ByteArray(message)
-    messageBytes.append(0xF7)
-    identifyMessage(data: messageBytes)
+func calculateWavestationChecksum(data: ByteArray) -> Byte {
+    var result: Int = 0
     
-    /*
-    if message[4] == 0x54 {
-        print("Wave Sequence Data")
-        startOffset = 6
+    data.forEach { b in
+        result += Int(b)
     }
-    else if message[4] == 0x4C {
-        print("All Patch Data")
-        startOffset = 6
-    }
-    else if message[4] == 0x4D {
-        print("All Performance Data")
-        startOffset = 6
-    }
-    */
     
-    /*
-    let endOffset = messageBytes.count - 1 - 1 // leave out terminator and checksum
-    let payload = ByteArray(messageBytes[startOffset ..< endOffset])
-    if let payload = payload.denybblified(highFirst: false) {
-        print("payload: \(payload.count) bytes")
-        print(payload.hexDump())
-    }
-    else {
-        print("payload byte count should be even")
-    }
-     */
+    result = result & 0x7f
+    return Byte(result)
 }
-
-/*
-let startOffset = 6
-let endOffset = messageData.bytes.count - 1 - 1 // leave out terminator and checksum
-
-let payload = ByteArray(messageData.bytes[startOffset ..< endOffset])
-if let payload = payload.denybblified() {
-    print("payload: \(payload.count) bytes")
-    //print(payload.hexDump())
-}
-else {
-    print("payload byte count should be even")
-}
-*/
 
 /*
 let packedPayload = ByteArray(messageData.bytes[startOffset ..< endOffset])
@@ -321,5 +339,3 @@ let repackedPayload = unpackedPayload.packed()
 print("repacked: \(repackedPayload.count)")
 assert(repackedPayload == packedPayload)
 */
-
-
