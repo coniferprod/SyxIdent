@@ -148,30 +148,30 @@ struct Korg {
                 var commandData = ByteArray()
                 commandData.append(payload[2])
 
-                var commandValue = ""
+                var commandValue = "'\(command.description)'"
 
                 let bank = rawData.first!
                 switch command {
                 case .singlePatchDump:
                     let patch = rawData[1]
-                    commandValue = "Bank: \(bank)  Patch: \(patch)"
+                    commandValue += " Bank: \(bank)  Patch: \(patch)"
                     commandData.append(bank)
                     commandData.append(patch)
                     offset += 1
                 case .singlePerformanceDump:
                     let performance = rawData[1]
-                    commandValue = "Bank: \(bank)  Performance: \(performance)"
+                    commandValue += " Bank: \(bank)  Performance: \(performance)"
                     commandData.append(bank)
                     commandData.append(performance)
                     offset += 1
                 case .allPatchDump:
-                    commandValue = "Bank: \(bank)"
+                    commandValue += " Bank: \(bank)"
                     commandData.append(bank)
                 case .allPerformanceDump:
-                    commandValue = "Bank: \(bank)"
+                    commandValue += " Bank: \(bank)"
                     commandData.append(bank)
                 case .waveSequenceDump:
-                    commandValue = "Bank: \(bank)"
+                    commandValue += " Bank: \(bank)"
                     commandData.append(bank)
                 default:  // no additional parameters to show
                     break
@@ -185,18 +185,17 @@ struct Korg {
             let originalChecksum = payload.last!
             print("Original checksum: \(String(format: "%02X", originalChecksum))h")
             let calculatedChecksum = Wavestation.checksum(data: rawData)
+            var checksumVerifiedMessage = "Verified, "
             if originalChecksum == calculatedChecksum {
-                print("Checksums match!")
+                checksumVerifiedMessage += "OK"
             }
             else {
-                print("Calculated checksum: \(String(format: "%02X", calculatedChecksum))h")
-                print("Checksums don't match.")
+                checksumVerifiedMessage += "not OK (\(String(format: "%02X", calculatedChecksum))H != \(String(format: "%02X", originalChecksum))H"
             }
-            regions.append(Region(key: "Checksum", value: "\(String(format: "%02X", originalChecksum))H", start: offset, data: ByteArray(arrayLiteral: originalChecksum)))
+            regions.append(Region(key: "Checksum", value: "\(String(format: "%02X", originalChecksum))H (\(checksumVerifiedMessage))", start: offset, data: ByteArray(arrayLiteral: originalChecksum)))
             offset += 1
 
             if let data = ByteArray(rawData.dropFirst(offset)).denybblified(highFirst: false) {
-                print("final data: \(data.count) bytes")
                 regions.append(Region(key: "Data", value: "\(data.count) bytes", start: offset, data: data))
             }
             else {
