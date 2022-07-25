@@ -75,20 +75,39 @@ struct Kawai {
                 }
             }
         }
+        
+        struct Message {
+            let channel: Byte
+            let function: Byte
+            let group: Byte
+            let machineId: Byte
+            let substatus1: Byte
+            let substatus2: Byte
+            
+            func size() -> Int {
+                return 6
+            }
+        }
     }
     
     static func identify(payload: Payload) -> [Region] {
         var regions = [Region]()
         var offset = 0
         
-        let channel = payload[0].lowNybble + 1
-        regions.append(Region(key: "Channel", value: "\(channel)", start: 0, data: ByteArray(arrayLiteral: payload[0])))
+        let message = K4.Message(
+            channel: payload[0].lowNybble,
+            function: payload[1],
+            group: payload[2],
+            machineId: payload[3],
+            substatus1: payload[4],
+            substatus2: payload[5])
+        
+        regions.append(Region(key: "Channel no.", value: "\(message.channel + 1)", start: 0, data: ByteArray(arrayLiteral: payload[0])))
         offset += 1
         
-        let synthId = payload[3]
         var modelValue = "Unknown"
-        if Kawai.Model.isValid(modelId: synthId) {
-            if let model = Kawai.Model.init(rawValue: synthId) {
+        if Kawai.Model.isValid(modelId: message.machineId) {
+            if let model = Kawai.Model.init(rawValue: message.machineId) {
                 modelValue = model.description
             }
         }
@@ -97,54 +116,46 @@ struct Kawai {
             return regions
         }
         
-        regions.append(Region(key: "Model", value: modelValue, start: 1, data: ByteArray(arrayLiteral: synthId)))
-        offset += 1
-        
-        if let model = Kawai.Model.init(rawValue: synthId) {
+        if let model = Kawai.Model.init(rawValue: message.machineId) {
             switch model {
             case .k4:
-                if let function = K4.Function(rawValue: payload[1]) {
+                var substatus1Value = ""
+                var substatus2Value = "N/A"
+
+                if let function = K4.Function(rawValue: message.function) {
                     var functionData = ByteArray()
-                    functionData.append(payload[1])
+                    functionData.append(message.function)
 
                     var functionValue = "'\(function.description)'"
                     
                     var cardinality = K4.Cardinality.one
                     var locality = K4.Locality.int
-
+                    
                     switch function {
                     case .onePatchDataDump, .onePatchDataRequest:
-                        let substatus = (payload[5], payload[6])
-                        switch substatus {
-                        case let (loc, num):
-                            if loc == 0x00 || loc == 0x02 {  // single or multi
-                                if loc == 0x02 {
-                                    locality = .ext
-                                }
-                                if num <= 63 {
-                                    functionValue += "SINGLE \(num + 1)"
-                                }
-                                else {
-                                    functionValue += "MULTI \(num + 1)"
-                                }
+                        if message.substatus1 == 0x00 || message.substatus1 == 0x01 {
+                            substatus1Value = "Internal"
+                        }
+                        if message.substatus1 == 0x00 || message.substatus1 == 0x02 { // single or multi
+                            if message.substatus2 <= 63 {
+                                substatus2Value += "\(message.substatus2) SINGLE \(message.substatus2 + 1)"
                             }
-                            if loc == 0x01 || loc == 0x03 {  // drum or effect
-                                if loc == 0x03 {
-                                    locality = .ext
-                                }
-                                if num <= 31 {
-                                    functionValue += "EFFECT \(num + 1)"
-                                }
-                                else {
-                                    functionValue += "DRUM"
-                                }
+                            else {
+                                substatus2Value += "\(message.substatus2) MULTI \(message.substatus2 + 1)"
                             }
                         }
-                        offset += 2
+                        if message.substatus1 == 0x01 || message.substatus1 == 0x03 { // drum or effect
+                            if message.substatus2 <= 31 {
+                                substatus2Value += "\(message.substatus2) EFFECT \(message.substatus2 + 1)"
+                            }
+                            else {
+                                substatus2Value += "DRUM"
+                            }
+                        }
                                                 
                     case .blockPatchDataDump, .blockPatchDataRequest:
                         cardinality = .block
-                        let substatus = (payload[5], payload[6])
+                        let substatus = (message.substatus1, message.substatus2)
                         switch substatus {
                         case let (loc, kind):
                             if loc == 0x00 || loc == 0x02 {  // singles or multis
@@ -152,10 +163,10 @@ struct Kawai {
                                     locality = .ext
                                 }
                                 if kind == 0x00 {
-                                    functionValue += "All singles"
+                                    substatus2Value += "All singles"
                                 }
                                 else if kind == 0x40 {
-                                    functionValue += "All multis"
+                                    substatus2Value += "All multis"
                                 }
                             }
                             if loc == 0x01 || loc == 0x03 {  // effects
@@ -163,32 +174,31 @@ struct Kawai {
                                     locality = .ext
                                 }
                                 if kind == 0x00 {
-                                    functionValue += "All effects"
+                                    substatus2Value += "All effects"
                                 }
                             }
                         }
-                        offset += 2
                     
                     case .allPatchDataDump, .allPatchDataRequest:
                         cardinality = .all
-                        let substatus = (payload[5], payload[6])
+                        let substatus = (message.substatus1, message.substatus2)
                         switch substatus {
                         case let (loc, _):
+                            substatus1Value = "INT"
                             if loc == 0x00 || loc == 0x02 {
                                 if loc == 0x02 {
                                     locality = .ext
+                                    substatus1Value = "EXT"
                                 }
                             }
                         }
-                        offset += 2
                         
                     case .programChange:
                         functionValue += ": "
-                        let substatus1 = payload[5]
-                        if substatus1 == 0x00 {
+                        if message.substatus1 == 0x00 {
                             functionValue += "INT"
                         }
-                        else if substatus1 == 0x02 {
+                        else if message.substatus1 == 0x02 {
                             functionValue += "EXT"
                         }
                                                 
@@ -196,9 +206,16 @@ struct Kawai {
                         break
                     }
 
-                    regions.append(Region(key: "Function", value: functionValue, start: offset, data: functionData))
-                    offset += 1
+                    regions.append(Region(key: "Function no.", value: functionValue, start: 1, data: functionData))
                 }
+                
+                regions.append(Region(key: "Group no.", value: "Synthesizer group", start: 2, data: ByteArray(arrayLiteral: message.group)))
+                regions.append(Region(key: "Machine ID no.", value: modelValue, start: 3, data: ByteArray(arrayLiteral: message.machineId)))
+                regions.append(Region(key: "Sub status 1", value: substatus1Value, start: 4, data: ByteArray(arrayLiteral: message.substatus1)))
+                regions.append(Region(key: "Sub status 2", value: substatus2Value, start: 5, data: ByteArray(arrayLiteral: message.substatus2)))
+                
+                let data = ByteArray(payload.dropFirst(message.size()))
+                regions.append(Region(key: "Data", value: "\(data.count) bytes", start: message.size(), data: data))
 
             case .k5:
                 break
