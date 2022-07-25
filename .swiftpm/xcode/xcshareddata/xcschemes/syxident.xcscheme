@@ -76,7 +76,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "--input-file /Users/jere/tmp/ws-factory/fact_ram1.syx"
+            argument = "--input-file /Users/jere/tmp/K4/A401.syx"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

@@ -45,6 +45,15 @@ struct SyxIdent: ParsableCommand {
                         }
                         regions.append(contentsOf: adjustedPayloadRegions)
                     }
+                    else if manufacturer == Manufacturer.kawai {
+                        regions.append(Region(key: "Manufacturer", value: manufacturer.displayName, start: 1, data: manufacturer.getBytes()))
+                        adjustment += manufacturer.length
+                        let payloadRegions = Kawai.identify(payload: payload)
+                        let adjustedPayloadRegions = payloadRegions.map {
+                            Region(key: $0.key, value: $0.value, start: $0.start + adjustment, data: $0.data)
+                        }
+                        regions.append(contentsOf: adjustedPayloadRegions)
+                    }
                     else {
                         print("Can't handle SysEx for \(manufacturer.displayName) yet")
                         continue
